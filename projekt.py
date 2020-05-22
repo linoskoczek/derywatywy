@@ -3,7 +3,10 @@ import pandas as pd
 import morfeusz2
 from hyphen import Hyphenator
 from sklearn import preprocessing
-from sklearn.tree import DecisionTreeRegressor
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import accuracy_score
 import numpy as np
 from sklearn.model_selection import train_test_split
 
@@ -34,35 +37,41 @@ f_le = preprocessing.LabelEncoder()
 dict_le = {
     'm': preprocessing.LabelEncoder(),
     'ms': preprocessing.LabelEncoder(),
-    'f': f_le,
     'fs': fs_le,
     'c_fs': fs_le,
+    'f': f_le,
     'c_f': f_le
 }
 dfn = encode_df(df, dict_le)
 
 train, test = train_test_split(dfn, test_size=0.2)
 
-neigh = DecisionTreeRegressor()
-X = dfn[['m', 'ms']]
-y = dfn[['fs']]
-neigh.fit(X, y)
+algs = [
+    LinearRegression(),
+    KNeighborsRegressor(),
+    DecisionTreeRegressor(),
+    KNeighborsClassifier(),
+    DecisionTreeClassifier(),
+]
 
-predicted = neigh.predict(test[['m', 'ms']])
-pred=pd.DataFrame(predicted)
-pred.columns = ['fs']
-pred['fs'] = pred['fs'].apply(np.int64)
-pred = pred.rename(index=dict(zip(pred.index,test.index)))
-pred['m'] = test['m']
-pred['ms'] = test['ms']
-pred['c_f'] = test['f']
-pred['c_fs'] = test['fs']
+for neigh in algs:
+    X = dfn[['m', 'ms']]
+    y = dfn[['fs']]
+    neigh.fit(X, y)
 
-print(pred.head(25))
-# pred = pred.where(pred['c_fs'].apply(is_integer(), np.NaN)
+    predicted = neigh.predict(test[['m', 'ms']])
+    pred=pd.DataFrame(predicted)
+    pred.columns = ['fs']
+    pred['fs'] = pred['fs'].apply(np.int64)
+    pred = pred.rename(index=dict(zip(pred.index,test.index)))
+    pred['m'] = test['m']
+    pred['ms'] = test['ms']
+    pred['c_f'] = test['f']
+    pred['c_fs'] = test['fs']
 
-# predictions_test = decode_df(predicted, le)
+    de = decode_df(pred, dict_le)
 
-# print(predictions_test.sample(5))
-print(decode_df(pred, dict_le).sample(25))
+    print("Score for", type(neigh).__name__, accuracy_score(pred['fs'], test['fs']))
 
+# for i in range(1, 500, 20):
+#     print(de[i:i+20])
