@@ -8,6 +8,7 @@ from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.metrics import ConfusionMatrixDisplay
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import cross_val_score
 import operator
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -26,7 +27,7 @@ def decode_df(dataframe, le):
         dataframe[column] = le[column].inverse_transform(dataframe[column])
     return dataframe
 
-def learn_model_and_test(alg, dfn, train, test, dict_le):
+def teach_model_and_test(alg, dfn, train, test, dict_le):
     X = dfn[['m', 'ms']]
     y = dfn[['fs']]
     alg.fit(X, np.ravel(y))
@@ -42,11 +43,12 @@ def learn_model_and_test(alg, dfn, train, test, dict_le):
     pred['c_fs'] = test['fs']
 
     decoded_results = decode_df(pred, dict_le)
-    score = accuracy_score(pred['fs'], test['fs'])
+    score = accuracy_score(test['fs'], pred['fs'], normalize=True)
     return score, decoded_results
 
 def find_best_algorithm_and_return_result(dfn, train, test, dict_le):
     best_results = None
+    best_alg = None
     best_score = 0
 
     algs = [
@@ -59,14 +61,15 @@ def find_best_algorithm_and_return_result(dfn, train, test, dict_le):
 
     scores = {}
     for alg in algs:
-        score, decoded_results = learn_model_and_test(alg, dfn, train, test, dict_le)
+        score, decoded_results = teach_model_and_test(alg, dfn, train, test, dict_le)
         scores[score] = decoded_results
         print('{:>15} {}'.format(type(alg).__name__, score))
         if score > best_score:
             best_score = score
             best_results = decoded_results
+            best_alg = alg
 
-    return best_results
+    return best_results, best_alg
 
 
 def calc_str_offset(str1, str2):
@@ -75,6 +78,35 @@ def calc_str_offset(str1, str2):
         return len(str1) - f
     else:
         return len(str1)
+
+
+def manual_test(alg, dfn, dict_le):
+    train = ['test']
+    score, decoded_results = teach_model_and_test(alg, dfn, train, test, dict_le)
+    decoded_results = merge_endings(decoded_results)
+    return score, decoded_results
+
+
+def merge_endings(decoded_results):
+    mfs = list(decoded_results[['m', 'ms', 'fs']].values)
+
+    final_results = []
+    for r in mfs:
+        m = r[0][:-calc_str_offset(r[1], r[2])]
+        final_results.append(m + r[2])
+
+    decoded_results['final_results'] = final_results
+    decoded_results['guess_ok'] = np.where(
+        decoded_results['final_results'] == decoded_results['c_f'], True, False)
+    return decoded_results
+
+
+def calculate_score(decoded_results):
+    count_true = decoded_results.guess_ok[decoded_results.guess_ok == True].count()
+    count_all = len(decoded_results.index)
+    score = count_true/count_all * 100
+    return score, count_true, count_all
+
 
 def main():
     best_letter_number = 0
@@ -85,7 +117,7 @@ def main():
     data = data[['child_lemma', 'parent_lemma']]
     data = data.drop_duplicates()
 
-    for letter_number in range(1, 20):
+    for letter_number in range(1, 10):
         pd_list = [[c[0][-letter_number:], c[1][-letter_number:], c[0], c[1]] for c in data.values]
         df = pd.DataFrame().from_records(pd_list)
         df.columns = ['ms', 'fs', 'm', 'f']
@@ -104,30 +136,22 @@ def main():
         dfn = encode_df(df, dict_le)
         print('\n[TEST FOR LEARNING WITH LAST', letter_number, 'LETTERS]')
 
-        train, test = train_test_split(dfn, test_size=0.2)
+        train, test = train_test_split(dfn, test_size=0.99)
 
-        decoded_results = find_best_algorithm_and_return_result(dfn, train, test, dict_le)
-        mfs = list(decoded_results[['m', 'ms', 'fs']].values)
-
-        final_results = []
-        for r in mfs:
-            m = r[0][:-calc_str_offset(r[1], r[2])]
-            final_results.append(m + r[2])
-
-        decoded_results['final_results'] = final_results
-        decoded_results['guess_ok'] = np.where(
-            decoded_results['final_results'] == decoded_results['c_f'], True, False)
-        count_true = decoded_results.guess_ok[decoded_results.guess_ok == True].count()
-        count_all = len(decoded_results.index)
-        score = count_true/count_all * 100
+        decoded_results, alg = find_best_algorithm_and_return_result(dfn, train, test, dict_le)
+        decoded_results = merge_endings(decoded_results)
+        score, count_true, count_all = calculate_score(decoded_results)
         if score > best_score:
             best_score = score
             best_letter_number = letter_number
             best_results = decoded_results
         print("Result:", score, '%')
-        
+    
+    # score, decoded_results = manual_test(alg, dfn, dict_le)
+    # print('manual:', score)
+    
     return count_true, count_all, best_score, best_letter_number, best_results
 
 count_true, count_all, score, best_letter_number, best_results = main()
 print("\nFinal accuracy:", count_true, "/", count_all, '->', score, '%', 'for', best_letter_number, 'letters')
-print(best_results.head(15))
+print(best_results[['m', 'final_results', 'guess_ok']].head(15))
