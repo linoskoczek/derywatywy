@@ -1,17 +1,18 @@
 import sklearn as sk
 import sys
 import pandas as pd
+import operator
+import numpy as np
 from sklearn import preprocessing
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.metrics import ConfusionMatrixDisplay
-from sklearn.linear_model import LinearRegression
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import LinearRegression, SGDClassifier
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import cross_val_score
-import operator
-import numpy as np
 from sklearn.model_selection import train_test_split
-
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 def encode_df(dataframe, le):
     dataframe = dataframe.copy()
@@ -27,8 +28,8 @@ def decode_df(dataframe, le):
     return dataframe
 
 def teach_model_and_test(alg, dfn, train, test, dict_le):
-    X = dfn[['m', 'ms']]
-    y = dfn[['fs']]
+    X = train[['m', 'ms']]
+    y = train[['fs']]
     alg.fit(X, np.ravel(y))
 
     predicted = alg.predict(test[['m', 'ms']])
@@ -54,8 +55,8 @@ def find_best_algorithm_and_return_result(dfn, train, test, dict_le):
         LinearRegression(),
         KNeighborsRegressor(),
         KNeighborsClassifier(),
-        # DecisionTreeRegressor(),
-        # DecisionTreeClassifier()
+        DecisionTreeClassifier(),
+        RandomForestClassifier()
     ]
 
     scores = {}
@@ -77,13 +78,6 @@ def calc_str_offset(str1, str2):
         return len(str1) - f
     else:
         return len(str1)
-
-
-def manual_test(alg, dfn, dict_le):
-    train = ['test']
-    score, decoded_results = teach_model_and_test(alg, dfn, train, test, dict_le)
-    decoded_results = merge_endings(decoded_results)
-    return score, decoded_results
 
 
 def merge_endings(decoded_results):
@@ -149,9 +143,6 @@ def main():
             best_letter_number = letter_number
             best_results = decoded_results
         print("Result:", score, '%')
-    
-    # score, decoded_results = manual_test(alg, dfn, dict_le)
-    # print('manual:', score)
     
     return best_count_true, count_all, best_score, best_letter_number, best_results
 
