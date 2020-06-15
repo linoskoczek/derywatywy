@@ -1,7 +1,6 @@
 import sklearn as sk
 import sys
 import pandas as pd
-from hyphen import Hyphenator
 from sklearn import preprocessing
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
@@ -54,9 +53,9 @@ def find_best_algorithm_and_return_result(dfn, train, test, dict_le):
     algs = [
         LinearRegression(),
         KNeighborsRegressor(),
-        DecisionTreeRegressor(),
         KNeighborsClassifier(),
-        DecisionTreeClassifier()
+        # DecisionTreeRegressor(),
+        # DecisionTreeClassifier()
     ]
 
     scores = {}
@@ -111,11 +110,14 @@ def calculate_score(decoded_results):
 def main():
     best_letter_number = 0
     best_score = 0
+    best_count_true = 0
     best_results = None
     
     data = pd.read_csv('dane.csv', sep=';')
     data = data[['child_lemma', 'parent_lemma']]
     data = data.drop_duplicates()
+
+    count_all = len(data)
 
     for letter_number in range(1, 10):
         pd_list = [[c[0][-letter_number:], c[1][-letter_number:], c[0], c[1]] for c in data.values]
@@ -136,13 +138,14 @@ def main():
         dfn = encode_df(df, dict_le)
         print('\n[TEST FOR LEARNING WITH LAST', letter_number, 'LETTERS]')
 
-        train, test = train_test_split(dfn, test_size=0.99)
+        train, test = train_test_split(dfn, test_size=0.2)
 
         decoded_results, alg = find_best_algorithm_and_return_result(dfn, train, test, dict_le)
         decoded_results = merge_endings(decoded_results)
         score, count_true, count_all = calculate_score(decoded_results)
         if score > best_score:
             best_score = score
+            best_count_true = count_true
             best_letter_number = letter_number
             best_results = decoded_results
         print("Result:", score, '%')
@@ -150,7 +153,7 @@ def main():
     # score, decoded_results = manual_test(alg, dfn, dict_le)
     # print('manual:', score)
     
-    return count_true, count_all, best_score, best_letter_number, best_results
+    return best_count_true, count_all, best_score, best_letter_number, best_results
 
 count_true, count_all, score, best_letter_number, best_results = main()
 print("\nFinal accuracy:", count_true, "/", count_all, '->', score, '%', 'for', best_letter_number, 'letters')
