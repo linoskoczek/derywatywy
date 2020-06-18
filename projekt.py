@@ -9,12 +9,13 @@ from sklearn import preprocessing
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn.linear_model import LinearRegression, SGDClassifier
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import learning_curve, train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import load_digits
+
 
 def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
                         n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
@@ -82,6 +83,7 @@ def decode_df(dataframe, le):
         dataframe[column] = le[column].inverse_transform(dataframe[column])
     return dataframe
 
+
 def teach_model_and_test(alg, dfn, train, test, dict_le, letter_number):
     X = train[['m', 'ms']]
     y = train[['fs']]
@@ -112,6 +114,7 @@ def teach_model_and_test(alg, dfn, train, test, dict_le, letter_number):
 
     return score, decoded_results
 
+
 def find_best_algorithm_and_return_result(dfn, train, test, dict_le, letter_number):
     best_results = None
     best_alg = None
@@ -127,13 +130,14 @@ def find_best_algorithm_and_return_result(dfn, train, test, dict_le, letter_numb
     ]
 
     scores = {}
-    
+
     objects = tuple([str(type(alg).__name__) for alg in algs])
     y_pos = np.arange(len(objects))
     performance = []
 
     for alg in algs:
-        score, decoded_results = teach_model_and_test(alg, dfn, train, test, dict_le, letter_number)
+        score, decoded_results = teach_model_and_test(
+            alg, dfn, train, test, dict_le, letter_number)
         scores[score] = decoded_results
         print('{:>15} {}'.format(type(alg).__name__, score))
         if score > best_score:
@@ -141,7 +145,7 @@ def find_best_algorithm_and_return_result(dfn, train, test, dict_le, letter_numb
             best_results = decoded_results
             best_alg = alg
         performance.append(score)
-        
+
     # if letter_number == 3:
     #     plt.bar(y_pos, performance, align='center', alpha=0.5)
     #     plt.xticks(y_pos, objects)
@@ -175,7 +179,8 @@ def merge_endings(decoded_results):
 
 
 def calculate_score(decoded_results):
-    count_true = decoded_results.guess_ok[decoded_results.guess_ok == True].count()
+    count_true = decoded_results.guess_ok[decoded_results.guess_ok == True].count(
+    )
     count_all = len(decoded_results.index)
     score = count_true/count_all * 100
     return score, count_true, count_all
@@ -186,7 +191,7 @@ def main():
     best_score = 0
     best_count_true = 0
     best_results = None
-    
+
     data = pd.read_csv('dane.csv', sep=';')
     data = data[['child_lemma', 'parent_lemma']]
     data = data.drop_duplicates()
@@ -194,7 +199,8 @@ def main():
     count_all = len(data)
 
     for letter_number in range(1, 10):
-        pd_list = [[c[0][-letter_number:], c[1][-letter_number:], c[0], c[1]] for c in data.values]
+        pd_list = [[c[0][-letter_number:], c[1][-letter_number:], c[0], c[1]]
+                   for c in data.values]
         df = pd.DataFrame().from_records(pd_list)
         df.columns = ['ms', 'fs', 'm', 'f']
 
@@ -214,7 +220,8 @@ def main():
 
         train, test = train_test_split(dfn, test_size=0.2)
 
-        decoded_results, alg = find_best_algorithm_and_return_result(dfn, train, test, dict_le, letter_number)
+        decoded_results, alg = find_best_algorithm_and_return_result(
+            dfn, train, test, dict_le, letter_number)
         decoded_results = merge_endings(decoded_results)
         score, count_true, count_all = calculate_score(decoded_results)
         if score > best_score:
@@ -223,9 +230,11 @@ def main():
             best_letter_number = letter_number
             best_results = decoded_results
         print("Result:", score, '%')
-    
+
     return best_count_true, count_all, best_score, best_letter_number, best_results
 
+
 count_true, count_all, score, best_letter_number, best_results = main()
-print("\nFinal accuracy:", count_true, "/", count_all, '->', score, '%', 'for', best_letter_number, 'letters')
+print("\nFinal accuracy:", count_true, "/", count_all, '->',
+      score, '%', 'for', best_letter_number, 'letters')
 print(best_results[['m', 'final_results', 'guess_ok']].head(15))
