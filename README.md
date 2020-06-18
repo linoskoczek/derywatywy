@@ -9,6 +9,8 @@ This program learns how to create female derivatives from Polish, male-form word
 ## Instructions to run
 
 ```
+git clone https://github.com/linoskoczek/derywatywy.git
+cd derywatywy
 pip install -r requirements.txt
 python3 projekt.py
 ```
