@@ -1,4 +1,4 @@
 sklearn
 pandas
 numpy
-pyhyphen
+scikit-plot
